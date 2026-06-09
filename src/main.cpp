@@ -4,6 +4,7 @@
 #include <Preferences.h>
 #include <TaskScheduler.h>
 #include <PubSubClient.h>
+#include <ezLED.h>
 #include "dashboard_html.h"  // Auto-generated
 #include "Credentials.h"
 
@@ -28,17 +29,16 @@ String mqttPass   = "";
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
-// Dashboard
-StatusCard* mqttStatus = nullptr;
+ezLED statusLed(LED_BUILTIN);
 
 // Scheduler
 Scheduler ts;
 
 void connectMqtt();
 void reconnectMqtt();
-Task tConnectMqtt(0, TASK_FOREVER, &connectMqtt, &ts, true);
-Task tReconnectMqtt(2 * TASK_SECOND, TASK_FOREVER, &reconnectMqtt, &ts, false);
-Task tMqttLoop(TASK_IMMEDIATE, TASK_FOREVER, []() { mqtt.loop(); }, &ts, true);
+Task tConnectMqtt(TASK_IMMEDIATE, TASK_FOREVER, &connectMqtt, &ts, true);
+Task tReconnectMqtt(5 * TASK_SECOND, TASK_FOREVER, &reconnectMqtt, &ts, false);
+Task tStatusLed(TASK_IMMEDIATE, TASK_FOREVER, []() { statusLed.loop(); }, &ts, true);
 Task tDashboardLoop(TASK_IMMEDIATE, TASK_FOREVER, []() { dashboard.loop(); }, &ts, true);
 
 void connectMqtt() {
@@ -48,45 +48,46 @@ void connectMqtt() {
     _def("MQTT not connected, attempting to reconnect...\n");
     tConnectMqtt.disable();
     tReconnectMqtt.enable();
+  } else {
+    mqtt.loop();
   }
-} 
-
-constexpr uint8_t MQTT_MAX_ATTEMPTS = 5;
+}
 
 void reconnectMqtt() {
   if (WiFi.status() != WL_CONNECTED) { return; }
-  static uint8_t attempts = 0;
   if (mqtt.connect(deviceName, mqttUser.c_str(), mqttPass.c_str())) {
-    attempts = 0;
-    _def("MQTT connected\n");
-    // mqtt.subscribe("inTopic");
+    _def("MQTT connected: %s\n", mqttBroker.c_str());
     // mqtt.publish("outTopic", "hello world");
-    mqttStatus->setStatus(StatusIcon::WIFI, CardVariant::SUCCESS, "Connected", mqttBroker);
-    tReconnectMqtt.setIntervalNodelay(2 * TASK_SECOND, TASK_INTERVAL_RECALC);
+    mqtt.subscribe("omg/OMG_ESP32_BLE/BTtoMQTT/A4C138C5BFA8");
+    statusLed.blinkNumberOfTimes(300, 300, 3);
+    dashboard.updateStatusCard("mqtt_status", StatusIcon::WIFI, CardVariant::SUCCESS, "Connected",
+                               mqttBroker);
     tReconnectMqtt.disable();
     tConnectMqtt.enable();
     return;
   } else {
-    attempts++;
-    mqttStatus->setStatus(StatusIcon::WIFI, CardVariant::WARNING, "Not Connected",
-                          "Retry " + String(attempts) + "/" + String(MQTT_MAX_ATTEMPTS));
-  }
-
-  if (attempts >= MQTT_MAX_ATTEMPTS) {
-    attempts = 0;
-    _def("MQTT connect failed, state: %d\n", mqtt.state());
-    tReconnectMqtt.setIntervalNodelay(5 * TASK_MINUTE, TASK_INTERVAL_RECALC);
-  } else if (attempts <= 1) {
-    tReconnectMqtt.setIntervalNodelay(2 * TASK_SECOND, TASK_INTERVAL_RECALC);
+    dashboard.updateStatusCard("mqtt_status", StatusIcon::WIFI, CardVariant::WARNING,
+                               "Not Connected",
+                               "MQTT connect failed, state: " + String(mqtt.state()));
   }
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  _def("Message arrived [");
-  _def("%s", topic);
-  _def("] ");
-  for (int i = 0; i < length; i++) { _def("%c", (char)payload[i]); }
-  _def("\n");
+  _def("Message arrived [ %s ]", topic);
+  //   for (int i = 0; i < length; i++) { _def("%c", (char)payload[i]); }
+  // _def("\n");
+
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, payload, length);
+  if (error) {
+    _def("JSON parse failed: %s\n", error.c_str());
+    return;
+  }
+
+  float tempc = doc["tempc"] | 0.0f;
+  float hum   = doc["hum"] | 0.0f;
+
+  _def(" tempc: %.2f | hum: %.2f\n", tempc, hum);
 }
 
 void setup() {
@@ -102,6 +103,10 @@ void setup() {
   mqttPort      = prefs.getUInt("mqtt_port", 1883);
   prefs.end();
 
+  mqtt.setServer(mqttBroker.c_str(), mqttPort);
+  mqtt.setCallback(mqttCallback);
+  mqtt.setBufferSize(512); // Option: Adjust as needed based on expected message sizes
+
   // Try saved credentials or start AP
   if (savedSSID.length() > 0) {
     WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
@@ -112,18 +117,7 @@ void setup() {
     }
   }
 
-  if (WiFi.status() == WL_CONNECTED) {
-    //   mqtt.setBufferSize(1024);
-    mqtt.setCallback(mqttCallback);
-    mqtt.setServer(mqttBroker.c_str(), mqttPort);
-    if (!mqtt.connect(deviceName, mqttUser.c_str(), mqttPass.c_str())) {
-      _def("Failed to connect to MQTT broker\n");
-    }
-  } else {
-    WiFi.softAP(apSsid, apPassword);
-  }
-
-  // if (WiFi.status() != WL_CONNECTED) { WiFi.softAP(apSsid, apPassword); }
+  if (WiFi.status() == WL_CONNECTED) WiFi.softAP(apSsid, apPassword);
 
   dashboard.begin(&server, DASHBOARD_HTML_DATA, DASHBOARD_HTML_SIZE);
 
@@ -138,16 +132,8 @@ void setup() {
     status->setStatus(StatusIcon::WIFI, CardVariant::WARNING, "AP Mode", "192.168.4.1");
   }
 
-  // MQTT Status
   StatusCard* mqttStatus = dashboard.addStatusCard("mqtt_status", "MQTT Status", StatusIcon::WIFI);
   mqttStatus->setWeight(2);
-  if (mqtt.connected()) {
-    // if (mqtt.state() == MQTT_CONNECTED) {
-    mqttStatus->setStatus(StatusIcon::WIFI, CardVariant::SUCCESS, "Connected", mqttBroker);
-  } else {
-    mqttStatus->setStatus(StatusIcon::WIFI, CardVariant::WARNING, "Not Connected",
-                          "Retry to restart");
-  }
 
   // SSID input
   InputCard* ssidInput = dashboard.addInputCard("ssid", "WiFi SSID", savedSSID);
@@ -164,15 +150,15 @@ void setup() {
   mqttBrokerInput->setWeight(5);
   mqttBrokerInput->setValue(mqttBroker);
 
-  // MQTT User input
-  InputCard* mqttUserInput = dashboard.addInputCard("mqtt_user", "MQTT User", "");
-  mqttUserInput->setWeight(6);
-  mqttUserInput->setValue(mqttUser);
-
   // MQTT Port input
   InputCard* mqttPortInput = dashboard.addInputCard("mqtt_port", "MQTT Port", "");
-  mqttPortInput->setWeight(7);
+  mqttPortInput->setWeight(6);
   mqttPortInput->setValue(String(mqttPort));
+
+  // MQTT User input
+  InputCard* mqttUserInput = dashboard.addInputCard("mqtt_user", "MQTT User", "");
+  mqttUserInput->setWeight(7);
+  // mqttUserInput->setValue(mqttUser);
 
   // Password input
   InputCard* mqttPassInput = dashboard.addInputCard("mqtt_pass", "MQTT Password", "");
@@ -180,36 +166,32 @@ void setup() {
   mqttPassInput->inputType = "password";
 
   // Save button
-  ButtonCardImpl* configBtn = dashboard.addButtonCard("save", "Settings", "Save & Restart", []() {
-    prefs.begin("config", false);
-    // Get values from cards
-    InputCard* ssid       = static_cast<InputCard*>(dashboard.getCard("ssid"));
-    InputCard* pass       = static_cast<InputCard*>(dashboard.getCard("password"));
-    InputCard* mqttBroker = static_cast<InputCard*>(dashboard.getCard("mqtt_broker"));
-    InputCard* mqttUser   = static_cast<InputCard*>(dashboard.getCard("mqtt_user"));
-    InputCard* mqttPass   = static_cast<InputCard*>(dashboard.getCard("mqtt_pass"));
-    InputCard* mqttPort   = static_cast<InputCard*>(dashboard.getCard("mqtt_port"));
-    prefs.putString("ssid", ssid->value);
-    prefs.putString("pass", pass->value);
-    prefs.putString("mqtt_broker", mqttBroker->value);
-    prefs.putString("mqtt_user", mqttUser->value);
-    prefs.putString("mqtt_pass", mqttPass->value);
-    prefs.putUInt("mqtt_port", mqttPort->value.toInt());
-    prefs.end();
+  ButtonCardImpl* configBtn =
+    dashboard.addButtonCard("save", "Network Settings", "Save & Restart", []() {
+      prefs.begin("config", false);
+      // Get values from cards
+      InputCard* ssid       = static_cast<InputCard*>(dashboard.getCard("ssid"));
+      InputCard* pass       = static_cast<InputCard*>(dashboard.getCard("password"));
+      InputCard* mqttBroker = static_cast<InputCard*>(dashboard.getCard("mqtt_broker"));
+      InputCard* mqttUser   = static_cast<InputCard*>(dashboard.getCard("mqtt_user"));
+      InputCard* mqttPass   = static_cast<InputCard*>(dashboard.getCard("mqtt_pass"));
+      InputCard* mqttPort   = static_cast<InputCard*>(dashboard.getCard("mqtt_port"));
+      prefs.putString("ssid", ssid->value);
+      prefs.putString("pass", pass->value);
+      prefs.putString("mqtt_broker", mqttBroker->value);
+      prefs.putString("mqtt_user", mqttUser->value);
+      prefs.putString("mqtt_pass", mqttPass->value);
+      prefs.putUInt("mqtt_port", mqttPort->value.toInt());
+      prefs.end();
 
-    delay(1000);
-    ESP.restart();
-  });
+      delay(1000);
+      ESP.restart();
+    });
   configBtn->setWeight(8);
 
   server.begin();
 }
 
 void loop() {
-  // checkMqttConnection(mqtt, mqttBroker.c_str(), mqttPort, deviceName, mqttUser.c_str(),
-  //                     mqttPass.c_str());
-  // if (!mqtt.connected()) { reconnectMqtt(); }
-  // mqtt.loop();
-  // dashboard.loop();
   ts.execute();
 }
