@@ -115,13 +115,13 @@ void setup() {
       delay(500);
       attempts++;
     }
+  } else {
+    _def("No saved WiFi credentials\n");
   }
 
   if (WiFi.status() != WL_CONNECTED) {
-    if (savedSSID.length() <= 0) {
-        _def("No saved WiFi credentials, starting AP mode...\n");
-      WiFi.softAP(apSsid, apPassword);
-    }
+    _def("Starting AP mode...\n");
+    WiFi.softAP(apSsid, apPassword);
   }
 
   dashboard.begin(&server, DASHBOARD_HTML_DATA, DASHBOARD_HTML_SIZE);
