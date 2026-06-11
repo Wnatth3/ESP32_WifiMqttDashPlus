@@ -11,11 +11,14 @@
 #define _DEBUG_  // Comment this line to disable debug prints
 #include "Debug.h"
 
+#include "DashboardUI.h"
+
 #define deviceName "ESP32 Dashboard Plus"
 
 Preferences prefs;
 AsyncWebServer server(80);
 ESPDashboardPlus dashboard(deviceName);
+DashboardUI ui;
 
 String savedSSID     = "";
 String savedPassword = "";
@@ -124,6 +127,7 @@ void setup() {
     WiFi.softAP(apSsid, apPassword);
   }
 
+<<<<<<< HEAD
   dashboard.begin(&server, DASHBOARD_HTML_DATA, DASHBOARD_HTML_SIZE);
 
   // WiFi Status
@@ -193,6 +197,11 @@ void setup() {
       ESP.restart();
     });
   configBtn->setWeight(8);
+=======
+  //  DashboardUI - encapsulates the UI setup for the ESPDashboardPlus dashboard.
+  ui.init(dashboard, server, savedSSID, savedPassword, mqttBroker, mqttPort, mqttUser, mqttPass,
+          prefs);
+>>>>>>> 3e2f8d0 (Add DashboardUI class for improved UI setup and management)
 
   server.begin();
 }
