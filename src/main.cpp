@@ -58,7 +58,7 @@ void reconnectMqtt() {
   if (mqtt.connect(deviceName, mqttUser.c_str(), mqttPass.c_str())) {
     _def("MQTT connected: %s\n", mqttBroker.c_str());
     // mqtt.publish("outTopic", "hello world");
-    mqtt.subscribe("omg/OMG_ESP32_BLE/BTtoMQTT/A4C138C5BFA8");
+    // mqtt.subscribe("omg/OMG_ESP32_BLE/BTtoMQTT/A4C138C5BFA8");
     statusLed.blinkNumberOfTimes(300, 300, 3);
     dashboard.updateStatusCard("mqtt_status", StatusIcon::WIFI, CardVariant::SUCCESS, "Connected",
                                mqttBroker);
@@ -117,7 +117,12 @@ void setup() {
     }
   }
 
-  if (WiFi.status() == WL_CONNECTED) WiFi.softAP(apSsid, apPassword);
+  if (WiFi.status() != WL_CONNECTED) {
+    if (savedSSID.length() <= 0) {
+        _def("No saved WiFi credentials, starting AP mode...\n");
+      WiFi.softAP(apSsid, apPassword);
+    }
+  }
 
   dashboard.begin(&server, DASHBOARD_HTML_DATA, DASHBOARD_HTML_SIZE);
 
