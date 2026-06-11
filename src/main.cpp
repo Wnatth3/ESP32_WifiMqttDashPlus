@@ -108,7 +108,7 @@ void setup() {
 
   mqtt.setServer(mqttBroker.c_str(), mqttPort);
   mqtt.setCallback(mqttCallback);
-  mqtt.setBufferSize(512); // Option: Adjust as needed based on expected message sizes
+  mqtt.setBufferSize(512);  // Option: Adjust as needed based on expected message sizes
 
   // Try saved credentials or start AP
   if (savedSSID.length() > 0) {
@@ -127,81 +127,8 @@ void setup() {
     WiFi.softAP(apSsid, apPassword);
   }
 
-<<<<<<< HEAD
-  dashboard.begin(&server, DASHBOARD_HTML_DATA, DASHBOARD_HTML_SIZE);
-
-  // WiFi Status
-  StatusCard* status = dashboard.addStatusCard("status", "WiFi Status", StatusIcon::WIFI);
-  status->setWeight(1);
-  if (WiFi.status() == WL_CONNECTED) {
-    status->setStatus(StatusIcon::WIFI, CardVariant::SUCCESS, "Connected",
-                      WiFi.localIP().toString());
-    _def("Connected to WiFi: %s\n", WiFi.localIP().toString().c_str());
-  } else {
-    status->setStatus(StatusIcon::WIFI, CardVariant::WARNING, "AP Mode", "192.168.4.1");
-  }
-
-  StatusCard* mqttStatus = dashboard.addStatusCard("mqtt_status", "MQTT Status", StatusIcon::WIFI);
-  mqttStatus->setWeight(2);
-
-  // SSID input
-  InputCard* ssidInput = dashboard.addInputCard("ssid", "WiFi SSID", savedSSID);
-  ssidInput->setWeight(3);
-  ssidInput->setValue(savedSSID);
-
-  // Password input
-  InputCard* passInput = dashboard.addInputCard("password", "WiFi Password", "");
-  passInput->setWeight(4);
-  passInput->inputType = "password";
-
-  // MQTT Broker input
-  InputCard* mqttBrokerInput = dashboard.addInputCard("mqtt_broker", "MQTT Broker", "");
-  mqttBrokerInput->setWeight(5);
-  mqttBrokerInput->setValue(mqttBroker);
-
-  // MQTT Port input
-  InputCard* mqttPortInput = dashboard.addInputCard("mqtt_port", "MQTT Port", "");
-  mqttPortInput->setWeight(6);
-  mqttPortInput->setValue(String(mqttPort));
-
-  // MQTT User input
-  InputCard* mqttUserInput = dashboard.addInputCard("mqtt_user", "MQTT User", "");
-  mqttUserInput->setWeight(7);
-  // mqttUserInput->setValue(mqttUser);
-
-  // Password input
-  InputCard* mqttPassInput = dashboard.addInputCard("mqtt_pass", "MQTT Password", "");
-  mqttPassInput->setWeight(8);
-  mqttPassInput->inputType = "password";
-
-  // Save button
-  ButtonCardImpl* configBtn =
-    dashboard.addButtonCard("save", "Network Settings", "Save & Restart", []() {
-      prefs.begin("config", false);
-      // Get values from cards
-      InputCard* ssid       = static_cast<InputCard*>(dashboard.getCard("ssid"));
-      InputCard* pass       = static_cast<InputCard*>(dashboard.getCard("password"));
-      InputCard* mqttBroker = static_cast<InputCard*>(dashboard.getCard("mqtt_broker"));
-      InputCard* mqttUser   = static_cast<InputCard*>(dashboard.getCard("mqtt_user"));
-      InputCard* mqttPass   = static_cast<InputCard*>(dashboard.getCard("mqtt_pass"));
-      InputCard* mqttPort   = static_cast<InputCard*>(dashboard.getCard("mqtt_port"));
-      prefs.putString("ssid", ssid->value);
-      prefs.putString("pass", pass->value);
-      prefs.putString("mqtt_broker", mqttBroker->value);
-      prefs.putString("mqtt_user", mqttUser->value);
-      prefs.putString("mqtt_pass", mqttPass->value);
-      prefs.putUInt("mqtt_port", mqttPort->value.toInt());
-      prefs.end();
-
-      delay(1000);
-      ESP.restart();
-    });
-  configBtn->setWeight(8);
-=======
-  //  DashboardUI - encapsulates the UI setup for the ESPDashboardPlus dashboard.
   ui.init(dashboard, server, savedSSID, savedPassword, mqttBroker, mqttPort, mqttUser, mqttPass,
           prefs);
->>>>>>> 3e2f8d0 (Add DashboardUI class for improved UI setup and management)
 
   server.begin();
 }
