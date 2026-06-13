@@ -1,25 +1,27 @@
+#include <TaskScheduler.h>
+#include <Preferences.h>
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <ESPDashboardPlus.h>
-#include <Preferences.h>
-#include <TaskScheduler.h>
 #include <PubSubClient.h>
 #include <ezLED.h>
 #include "dashboard_html.h"  // Auto-generated
 #include "Credentials.h"
-
 #define _DEBUG_  // Comment this line to disable debug prints
 #include "Debug.h"
-
 #include "DashboardUI.h"
 
-#define deviceName "ESP32 Dashboard Plus"
+constexpr const char* deviceName = "ESP32 Dashboard Plus";
 
+// Preferences for storing WiFi and MQTT credentials
 Preferences prefs;
+
+// Dashboard and server instances
 AsyncWebServer server(80);
 ESPDashboardPlus dashboard(deviceName);
 DashboardUI dashboardUi;
 
+// WiFi
 String savedSSID     = "";
 String savedPassword = "";
 
@@ -32,6 +34,7 @@ String mqttPass   = "";
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
+// Status LED
 ezLED statusLed(LED_BUILTIN);
 
 // Scheduler
@@ -44,6 +47,7 @@ Task tReconnectMqtt(5 * TASK_SECOND, TASK_FOREVER, &reconnectMqtt, &ts, false);
 Task tStatusLed(TASK_IMMEDIATE, TASK_FOREVER, []() { statusLed.loop(); }, &ts, true);
 Task tDashboardLoop(TASK_IMMEDIATE, TASK_FOREVER, []() { dashboard.loop(); }, &ts, true);
 
+// ----- Functions ----- //
 void connectMqtt() {
   if (WiFi.status() != WL_CONNECTED) { return; }
 
@@ -95,6 +99,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   _def(" tempc: %.2f | hum: %.2f\n", tempc, hum);
 }
 
+// ----- Setup ----- //
 void setup() {
   _serialBegin(115200);
 
@@ -108,6 +113,7 @@ void setup() {
   mqttPort      = prefs.getUInt("mqtt_port", 1883);
   prefs.end();
 
+  // Configure MQTT client
   mqtt.setServer(mqttBroker.c_str(), mqttPort);
   mqtt.setCallback(mqttCallback);
   mqtt.setBufferSize(512);  // Option: Adjust as needed based on expected message sizes
@@ -129,12 +135,14 @@ void setup() {
     WiFi.softAP(apSsid, apPassword);
   }
 
+  // Initialize dashboard UI
   dashboardUi.init(dashboard, server, savedSSID, savedPassword, mqttBroker, mqttPort, mqttUser,
                    mqttPass, prefs);
 
   server.begin();
 }
 
+// ----- loop ----- //
 void loop() {
   ts.execute();
 }
