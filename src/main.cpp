@@ -18,7 +18,7 @@
 Preferences prefs;
 AsyncWebServer server(80);
 ESPDashboardPlus dashboard(deviceName);
-DashboardUI ui;
+DashboardUI dashboardUi;
 
 String savedSSID     = "";
 String savedPassword = "";
@@ -61,7 +61,7 @@ void reconnectMqtt() {
   if (mqtt.connect(deviceName, mqttUser.c_str(), mqttPass.c_str())) {
     _def("MQTT connected: %s\n", mqttBroker.c_str());
     // mqtt.publish("outTopic", "hello world");
-    // mqtt.subscribe("omg/OMG_ESP32_BLE/BTtoMQTT/A4C138C5BFA8");
+    mqtt.subscribe("omg/OMG_ESP32_BLE/BTtoMQTT/A4C138C5BFA8");
     statusLed.blinkNumberOfTimes(300, 300, 3);
     dashboard.updateStatusCard("mqtt_status", StatusIcon::WIFI, CardVariant::SUCCESS, "Connected",
                                mqttBroker);
@@ -77,6 +77,8 @@ void reconnectMqtt() {
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   _def("Message arrived [ %s ]", topic);
+
+  // // Print raw payload
   //   for (int i = 0; i < length; i++) { _def("%c", (char)payload[i]); }
   // _def("\n");
 
@@ -127,8 +129,8 @@ void setup() {
     WiFi.softAP(apSsid, apPassword);
   }
 
-  ui.init(dashboard, server, savedSSID, savedPassword, mqttBroker, mqttPort, mqttUser, mqttPass,
-          prefs);
+  dashboardUi.init(dashboard, server, savedSSID, savedPassword, mqttBroker, mqttPort, mqttUser,
+                   mqttPass, prefs);
 
   server.begin();
 }

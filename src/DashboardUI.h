@@ -89,6 +89,20 @@ public:
       });
     configBtn->setWeight(8);
 
+    // Reset network settings button
+    ActionButton* resetBtn = dashboard.addActionButton(
+      "reset", "Reset Network Settings", "Reset & restart", "Reset Network Settings?",
+      "All WiFi & MQTT settings will be removed and device will restart.", [&prefs]() {
+        _def("Resetting network settings...\n");
+        prefs.begin("config", false);
+        prefs.clear();
+        prefs.end();
+        delay(1000);
+        ESP.restart();
+      });
+    resetBtn->setWeight(9);
+    resetBtn->setVariant(CardVariant::DANGER);
+
     // Restart button
     ButtonCardImpl* restartBtn =
       dashboard.addButtonCard("restart", "Restart Device", "Restart", []() {
@@ -96,6 +110,7 @@ public:
         delay(1000);
         ESP.restart();
       });
-    restartBtn->setWeight(9);
+    restartBtn->setWeight(10);
+    restartBtn->setVariant(CardVariant::WARNING);
   }
 };
