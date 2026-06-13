@@ -29,7 +29,7 @@ public:
     StatusCard* status = dashboard.addStatusCard("status", "WiFi Status", StatusIcon::WIFI);
     status->setWeight(1);
     if (WiFi.status() == WL_CONNECTED) {
-      status->setStatus(StatusIcon::WIFI, CardVariant::SUCCESS, "Connected",
+      status->setStatus(StatusIcon::WIFI, CardVariant::SUCCESS, String("Connected: ") + WiFi.SSID(),
                         WiFi.localIP().toString());
       _def("Connected to WiFi: %s\n", WiFi.localIP().toString().c_str());
     } else {
