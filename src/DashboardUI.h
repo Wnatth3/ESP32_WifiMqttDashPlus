@@ -6,17 +6,17 @@
 #include "ESPDashboardPlus.h"
 #include "Debug.h"
 
-/**
- * DashboardUI - encapsulates the UI setup for the ESPDashboardPlus dashboard.
- *
- * Usage:
- *   DashboardUI ui;
- *   ui.init(dashboard, server,
- *           savedSSID, savedPassword,
- *           mqttBroker, mqttPort,
- *           mqttUser, mqttPass,
- *           prefs);
- */
+/*
+  DashboardUI - encapsulates the UI setup for the ESPDashboardPlus dashboard.
+  Usage:
+    DashboardUI dashboardUI;
+    dashboardUI.init(dashboard, server,
+                     savedSSID, savedPassword,
+                     mqttBroker, mqttPort,
+                     mqttUser, mqttPass,
+                     prefs);
+*/
+
 class DashboardUI {
 public:
   void init(ESPDashboardPlus& dashboard, AsyncWebServer& server, const String& savedSSID,

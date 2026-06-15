@@ -2,6 +2,7 @@
 #include <Preferences.h>
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
+#include <ESPmDNS.h>
 #include <ESPDashboardPlus.h>
 #include <PubSubClient.h>
 #include <ezLED.h>
@@ -11,7 +12,7 @@
 #include "Debug.h"
 #include "DashboardUI.h"
 
-constexpr const char* deviceName = "ESP32 Dashboard Plus";
+constexpr const char* deviceName = "myESP32";
 
 // Preferences for storing WiFi and MQTT credentials
 Preferences prefs;
@@ -130,6 +131,9 @@ void setup() {
     _def("No saved WiFi credentials\n");
   }
 
+  // Use mDNS for host name resolution. You can use "http://<deviceName>.local" to access the device
+  if (!MDNS.begin(deviceName)) { _def("Error setting up MDNS responder!"); }
+
   if (WiFi.status() != WL_CONNECTED) {
     _def("Starting AP mode...\n");
     WiFi.softAP(apSsid, apPassword);
@@ -140,6 +144,10 @@ void setup() {
                    mqttPass, prefs);
 
   server.begin();
+
+  // Add service to MDNS-SD
+  // Without this call, the mDNS will be active for only a few minutes.
+  MDNS.addService("http", "tcp", 80);
 }
 
 // ----- loop ----- //
