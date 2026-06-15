@@ -23,8 +23,8 @@ ESPDashboardPlus dashboard(deviceName);
 DashboardUI dashboardUi;
 
 // WiFi
-String savedSSID     = "";
-String savedPassword = "";
+String staSsid = "";
+String staPass = "";
 
 // MQTT
 String mqttBroker = "";
@@ -68,13 +68,13 @@ void reconnectMqtt() {
     // mqtt.publish("outTopic", "hello world");
     mqtt.subscribe("omg/OMG_ESP32_BLE/BTtoMQTT/A4C138C5BFA8");
     statusLed.blinkNumberOfTimes(300, 300, 3);
-    dashboard.updateStatusCard("mqtt_status", StatusIcon::WIFI, CardVariant::SUCCESS, "Connected",
+    dashboard.updateStatusCard("mqttStatusId", StatusIcon::WIFI, CardVariant::SUCCESS, "Connected",
                                mqttBroker);
     tReconnectMqtt.disable();
     tConnectMqtt.enable();
     return;
   } else {
-    dashboard.updateStatusCard("mqtt_status", StatusIcon::WIFI, CardVariant::WARNING,
+    dashboard.updateStatusCard("mqttStatusId", StatusIcon::WIFI, CardVariant::WARNING,
                                "Not Connected",
                                "MQTT connect failed, state: " + String(mqtt.state()));
   }
@@ -106,12 +106,12 @@ void setup() {
 
   // Load saved credentials
   prefs.begin("config", true);
-  savedSSID     = prefs.getString("ssid", "");
-  savedPassword = prefs.getString("pass", "");
-  mqttBroker    = prefs.getString("mqtt_broker", "");
-  mqttUser      = prefs.getString("mqtt_user", "");
-  mqttPass      = prefs.getString("mqtt_pass", "");
-  mqttPort      = prefs.getUInt("mqtt_port", 1883);
+  staSsid    = prefs.getString("staSsid", "");
+  staPass    = prefs.getString("staPass", "");
+  mqttBroker = prefs.getString("mqttBroker", "");
+  mqttUser   = prefs.getString("mqttUser", "");
+  mqttPass   = prefs.getString("mqttPass", "");
+  mqttPort   = prefs.getUInt("mqttPort", mqttPort);
   prefs.end();
 
   // Configure MQTT client
@@ -120,8 +120,8 @@ void setup() {
   mqtt.setBufferSize(512);  // Option: Adjust as needed based on expected message sizes
 
   // Try saved credentials or start AP
-  if (savedSSID.length() > 0) {
-    WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
+  if (staSsid.length() > 0) {
+    WiFi.begin(staSsid.c_str(), staPass.c_str());
     int attempts = 0;
     while (WiFi.status() != WL_CONNECTED && attempts < 20) {
       delay(500);
@@ -132,7 +132,7 @@ void setup() {
   }
 
   // Use mDNS for host name resolution. You can use "http://<deviceName>.local" to access the device
-  if (!MDNS.begin(deviceName)) { _def("Error setting up MDNS responder!"); }
+  if (!MDNS.begin(deviceName)) { _def("Error setting up MDNS responder!\n"); }
 
   if (WiFi.status() != WL_CONNECTED) {
     _def("Starting AP mode...\n");
@@ -140,8 +140,7 @@ void setup() {
   }
 
   // Initialize dashboard UI
-  dashboardUi.init(dashboard, server, savedSSID, savedPassword, mqttBroker, mqttPort, mqttUser,
-                   mqttPass, prefs);
+  dashboardUi.init(dashboard, server, staSsid, mqttBroker, mqttPort, prefs);
 
   server.begin();
 
