@@ -23,8 +23,9 @@ ESPDashboardPlus dashboard(deviceName);
 DashboardUI dashboardUi;
 
 // WiFi
-String staSsid = "";
-String staPass = "";
+String staSsid       = "";
+String staPass       = "";
+bool isApModeRunning = false;
 
 // MQTT
 String mqttBroker = "";
@@ -41,14 +42,36 @@ ezLED statusLed(LED_BUILTIN);
 // Scheduler
 Scheduler ts;
 
+void checkWifiStatus();
 void connectMqtt();
 void reconnectMqtt();
+Task tCheckWifiStatus(5 * TASK_MINUTE, TASK_FOREVER, &checkWifiStatus, &ts, true);
 Task tConnectMqtt(TASK_IMMEDIATE, TASK_FOREVER, &connectMqtt, &ts, true);
 Task tReconnectMqtt(5 * TASK_SECOND, TASK_FOREVER, &reconnectMqtt, &ts, false);
 Task tStatusLed(TASK_IMMEDIATE, TASK_FOREVER, []() { statusLed.loop(); }, &ts, true);
 Task tDashboardLoop(TASK_IMMEDIATE, TASK_FOREVER, []() { dashboard.loop(); }, &ts, true);
 
 // ----- Functions ----- //
+void checkWifiStatus() {
+  if (WiFi.status() == WL_CONNECTED) {
+    isApModeRunning = false;
+    dashboard.updateStatusCard("wifiStatusId", StatusIcon::WIFI, CardVariant::SUCCESS,
+                               "Connected: " + WiFi.SSID(), WiFi.localIP().toString());
+  } else {
+    dashboard.updateStatusCard("wifiStatusId", StatusIcon::WIFI, CardVariant::WARNING, "AP Mode",
+                               "Status: " + String(WiFi.status()) + " | 192.168.4.1");
+
+    if (!isApModeRunning) {
+      isApModeRunning = true;
+      _def("WiFi disconnected | Status: %d\n", WiFi.status());
+      dashboard.logWarning("WiFi disconnected | Status: " + String(WiFi.status()));
+      _def("Starting AP mode...\n");
+      dashboard.logInfo("Starting AP mode...");
+      WiFi.softAP(apSsid, apPassword);
+    }
+  }
+}
+
 void connectMqtt() {
   if (WiFi.status() != WL_CONNECTED) { return; }
 
@@ -72,11 +95,9 @@ void reconnectMqtt() {
                                mqttBroker);
     tReconnectMqtt.disable();
     tConnectMqtt.enable();
-    return;
   } else {
     dashboard.updateStatusCard("mqttStatusId", StatusIcon::WIFI, CardVariant::WARNING,
-                               "Not Connected",
-                               "MQTT connect failed, state: " + String(mqtt.state()));
+                               "Disconnected", "State: " + String(mqtt.state()));
   }
 }
 
@@ -131,12 +152,14 @@ void setup() {
     _def("No saved WiFi credentials\n");
   }
 
-  // Use mDNS for host name resolution. You can use "http://<deviceName>.local" to access the device
+  // Use mDNS for host name resolution.
+  // You can use "http://<deviceName>.local" to access the device
   if (!MDNS.begin(deviceName)) { _def("Error setting up MDNS responder!\n"); }
 
   if (WiFi.status() != WL_CONNECTED) {
     _def("Starting AP mode...\n");
     WiFi.softAP(apSsid, apPassword);
+    isApModeRunning = true;
   }
 
   // Initialize dashboard UI

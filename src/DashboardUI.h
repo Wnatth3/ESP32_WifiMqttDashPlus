@@ -30,7 +30,7 @@ public:
     dashboard.addCardToGroup("configs", "wifiStatusId");
     if (WiFi.status() == WL_CONNECTED) {
       wifiStatus->setStatus(StatusIcon::WIFI, CardVariant::SUCCESS,
-                            String("Connected: ") + WiFi.SSID(), WiFi.localIP().toString());
+                            "Connected: " + WiFi.SSID(), WiFi.localIP().toString());
       _def("Connected to WiFi: %s\n", WiFi.localIP().toString().c_str());
     } else {
       wifiStatus->setStatus(StatusIcon::WIFI, CardVariant::WARNING, "AP Mode", "192.168.4.1");
