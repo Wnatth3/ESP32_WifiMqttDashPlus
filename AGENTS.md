@@ -30,6 +30,7 @@ src/
 - **Dashboard**: Served at `/` via `AsyncWebServer`; config saved via "Save & Restart" button → writes to Preferences → `ESP.restart()`
 - **MQTT**: Managed via `TaskScheduler` (reconnect logic with exponential backoff: 2s → 5min after 5 failures)
 - **Debug**: Define `_DEBUG_` in `main.cpp:10` to enable serial output
+- **Device Name**: Hardcoded in `src/main.cpp` as `constexpr const char* deviceName = "myESP32"`
 
 ## Non-Obvious Gotchas
 - `dashboard_html.h` is regenerated on build — changes to HTML require editing `extras/dashboard.html` (not in repo; see library docs)
